@@ -1,6 +1,9 @@
 const mongoose = require("mongoose");
 const express = require("express");
 const cors = require("cors");
+const fs = require("fs");
+const createCSVWriter = require("csv-writer").createObjectCsvWriter;
+const csv = require("csv-parser");
 const { requireAuth } = require("./middleware/auth");
 const User = require("./models/User");
 const jwt = require("jsonwebtoken");
@@ -31,15 +34,13 @@ app.post("/", (req, res) => {
   const { password } = req.body;
   if (password === process.env.PASSWORD) {
     const token = createToken("New User Verified");
-    res
-      .cookie("auth_token", token, {
-        maxAge: maxAge * 1000,
-        httpOnly: true,
-        sameSite: "none",
-        secure: true,
-      });
-    res.status(200)
-      .json({ msg: "success" });
+    res.cookie("auth_token", token, {
+      maxAge: maxAge * 1000,
+      httpOnly: true,
+      sameSite: "none",
+      secure: true,
+    });
+    res.status(200).json({ msg: "success" });
   } else {
     res.status(400).json({ msg: "error" });
   }
@@ -87,6 +88,59 @@ app.put("/update", async (req, res) => {
     })
     .catch((err) => {
       res.status(400).json({ msg: "Error" });
+    });
+});
+
+const studentData = [
+  { id: "sno", title: "S No" },
+  { id: "email", title: "Email" },
+  { id: "fullName", title: "Full Name" },
+  { id: "phoneNumber", title: "Phone" },
+  { id: "collegeName", title: "College Name" },
+  { id: "department", title: "Department" },
+  { id: "paid", title: "Paid" },
+  { id: "transactionNumber", title: "Transaction Number" },
+  { id: "selectedDepartment", title: "Selected Department" },
+];
+
+const fileUrl = "./files/userData.csv";
+
+const csvWriter = createCSVWriter({
+  path: fileUrl,
+  header: studentData,
+});
+
+app.get("/downloadData", async (req, res) => {
+  try {
+    fs.unlinkSync(fileUrl);
+  } catch (err) {
+    console.log("File Not Found!");
+  } 
+
+  await User.find({})
+    .then((data) => {
+      var newList = [];
+      data.forEach(({email, fullName, phoneNumber, collegeName, department, paid, transactionNumber, selectedDepartment, ...row}, index) => {
+        newList.push({
+          sno: index+1,
+          email,
+          fullName,
+          phoneNumber,
+          collegeName, 
+          department,
+          paid: paid ? "Yes" : "No",
+          transactionNumber,
+          selectedDepartment
+        });
+      });
+      // console.log(newList);
+      csvWriter.writeRecords(newList).then((output) => {
+        res.status(200).download(fileUrl);
+      });
+    })
+    .catch((err) => {
+      console.log(err);
+      res.status(400).json({ msg: "error" });
     });
 });
 
