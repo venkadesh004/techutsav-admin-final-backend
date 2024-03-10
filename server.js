@@ -26,21 +26,30 @@ app.use(cookieParser());
 
 const maxAge = 3 * 24 * 60 * 60;
 
-const createToken = (id) => {
-  return jwt.sign({ id }, process.env.SECRET_KEY, { expiresIn: maxAge });
+const createToken = (user) => {
+  return jwt.sign({ user }, process.env.SECRET_KEY, { expiresIn: maxAge });
 };
 
 app.post("/", (req, res) => {
   const { password } = req.body;
   if (password === process.env.PASSWORD) {
-    const token = createToken("New User Verified");
+    const token = createToken("admin");
     res.cookie("auth_token", token, {
       maxAge: maxAge * 1000,
       httpOnly: true,
       sameSite: "none",
       secure: true,
     });
-    res.status(200).json({ msg: "success" });
+    res.status(200).json({ msg: "success", user: "admin" });
+  } else if (password === process.env.SUB_PASSWORD) {
+    const token = createToken("sub_admin");
+    res.cookie("auth_token", token, {
+      maxAge: maxAge * 1000,
+      httpOnly: true,
+      sameSite: "none",
+      secure: true,
+    });
+    res.status(200).json({ msg: "success", user: "sub_admin" });
   } else {
     res.status(400).json({ msg: "error" });
   }
@@ -56,9 +65,8 @@ app.get("/getData", requireAuth, (req, res) => {
     });
 });
 
-app.put("/update", async (req, res) => {
+app.put("/update", requireAuth, async (req, res) => {
   const { _id, paid, fullName, email, transactionNumber } = req.body;
-
   User.updateOne(
     { _id: _id },
     { paid: paid, transactionNumber: transactionNumber }
@@ -115,24 +123,39 @@ app.get("/downloadData", async (req, res) => {
     fs.unlinkSync(fileUrl);
   } catch (err) {
     console.log("File Not Found!");
-  } 
+  }
 
   await User.find({})
     .then((data) => {
       var newList = [];
-      data.forEach(({email, fullName, phoneNumber, collegeName, department, paid, transactionNumber, selectedDepartment, ...row}, index) => {
-        newList.push({
-          sno: index+1,
-          email,
-          fullName,
-          phoneNumber,
-          collegeName, 
-          department,
-          paid: paid ? "Yes" : "No",
-          transactionNumber,
-          selectedDepartment
-        });
-      });
+      data.forEach(
+        (
+          {
+            email,
+            fullName,
+            phoneNumber,
+            collegeName,
+            department,
+            paid,
+            transactionNumber,
+            selectedDepartment,
+            ...row
+          },
+          index
+        ) => {
+          newList.push({
+            sno: index + 1,
+            email,
+            fullName,
+            phoneNumber,
+            collegeName,
+            department,
+            paid: paid ? "Yes" : "No",
+            transactionNumber,
+            selectedDepartment,
+          });
+        }
+      );
       // console.log(newList);
       csvWriter.writeRecords(newList).then((output) => {
         res.status(200).download(fileUrl);
