@@ -8,7 +8,7 @@ const { requireAuth } = require("./middleware/auth");
 const User = require("./models/User");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
-const emailjs = require("@emailjs/nodejs");
+// const emailjs = require("@emailjs/nodejs");
 
 require("dotenv").config();
 
@@ -71,7 +71,7 @@ app.put("/update", requireAuth, async (req, res) => {
     { _id: _id },
     { paid: paid, transactionNumber: transactionNumber }
   )
-    .then((result) => {
+    .then(async (result) => {
       var params = {
         to_name: fullName,
         to_mail: email,
@@ -80,19 +80,32 @@ app.put("/update", requireAuth, async (req, res) => {
           : "Your Payment transaction address is not matched. Please check the transaction id of your Payment and try once again.\n Thank you.\nRegards, Team TechUtsav24.",
       };
       // console.log(params);
-      emailjs
-        .send(process.env.SERVICE_ID, process.env.TEMPLATE_ID, params, {
-          publicKey: process.env.PUBLIC_KEY,
-          privateKey: process.env.PRIVATE_KEY,
-        })
-        .then((result) => {
-          // console.log(result);
-          // console.log("Email Sent!");
+      // emailjs
+      //   .send(process.env.SERVICE_ID, process.env.TEMPLATE_ID, params, {
+      //     publicKey: process.env.PUBLIC_KEY,
+      //     privateKey: process.env.PRIVATE_KEY,
+      //   })
+      //   .then((result) => {
+      //     // console.log(result);
+      //     // console.log("Email Sent!");
+      //   })
+      //   .catch((err) => {
+      //     // console.log(err);
+      //   });
+      const options = {
+        method: "POST",
+        body: JSON.stringify(params),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      };
+      await fetch("https://mail-service-faef.onrender.com/sendMail", options)
+        .then((output) => {
+          res.status(200).json({ msg: "Success" });
         })
         .catch((err) => {
-          // console.log(err);
+          res.status(400).json({ msg: "Error" });
         });
-      res.status(200).json({ msg: "Success" });
     })
     .catch((err) => {
       res.status(400).json({ msg: "Error" });
